@@ -4,7 +4,7 @@ import {
   KMSClientConfig,
   SignCommand,
 } from "@aws-sdk/client-kms";
-import { KmsBackend, KmsKey } from "@cuonghx.gu-tech/kms-signer-core";
+import { KmsBackend, KmsKey } from "@cuonghx/kms-signer-core";
 import { LocalAccount } from "viem";
 
 import { kmsKeyToAccount } from "./kms-key-to-account";

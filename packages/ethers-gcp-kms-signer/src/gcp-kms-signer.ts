@@ -2,7 +2,7 @@ import {
   KmsBackend,
   KmsKey,
   pemToDer,
-} from "@cuonghx.gu-tech/kms-signer-core";
+} from "@cuonghx/kms-signer-core";
 import { KeyManagementServiceClient } from "@google-cloud/kms";
 import {
   AbstractSigner,

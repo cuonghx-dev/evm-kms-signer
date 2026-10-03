@@ -53,4 +53,4 @@ Rebuild `kms-signer-core` after changing it. Adapters resolve it through the wor
 
 ## npm Scope
 
-All packages publish under `@cuonghx.gu-tech/` with public access.
+All packages publish under `@cuonghx/` with public access.

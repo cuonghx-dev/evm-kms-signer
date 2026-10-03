@@ -3,7 +3,7 @@ import {
   KMSClient,
   SignCommand,
 } from "@aws-sdk/client-kms";
-import { createLocalKmsBackend } from "@cuonghx.gu-tech/kms-signer-core";
+import { createLocalKmsBackend } from "@cuonghx/kms-signer-core";
 import { expect } from "chai";
 import {
   N,

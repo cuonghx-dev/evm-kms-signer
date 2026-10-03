@@ -1,5 +1,5 @@
 {
-  "name": "@cuonghx.gu-tech/viem-gcp-kms-signer",
+  "name": "@cuonghx/viem-gcp-kms-signer",
   "version": "0.1.0",
   "description": "GCP Cloud KMS account for viem",
   "main": "dist/src/index.js",
@@ -58,7 +58,7 @@
     "viem": "^2.24.0"
   },
   "dependencies": {
-    "@cuonghx.gu-tech/kms-signer-core": "^0.1.0",
+    "@cuonghx/kms-signer-core": "^0.1.0",
     "@google-cloud/kms": "^4.2.0",
     "google-gax": "^4.3.8"
   },

@@ -1,5 +1,5 @@
 {
-  "name": "@cuonghx.gu-tech/ethers-aws-kms-signer",
+  "name": "@cuonghx/ethers-aws-kms-signer",
   "version": "0.10.0",
   "description": "The @aws-sdk/client-kms integration with ethers@v6 signer",
   "main": "dist/src/index.js",
@@ -57,7 +57,7 @@
   "dependencies": {
     "@aws-sdk/client-kms": "^3.523.0",
     "@aws-sdk/credential-providers": "^3.549.0",
-    "@cuonghx.gu-tech/kms-signer-core": "^0.1.0",
+    "@cuonghx/kms-signer-core": "^0.1.0",
     "ethers": "^6.11.1"
   },
   "publishConfig": {

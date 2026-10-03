@@ -5,13 +5,13 @@ AWS KMS account for [viem](https://viem.sh).
 ## Install
 
 ```sh
-npm install viem @cuonghx.gu-tech/viem-aws-kms-signer
+npm install viem @cuonghx/viem-aws-kms-signer
 ```
 
 ## Usage
 
 ```typescript
-import { awsKmsToAccount } from "@cuonghx.gu-tech/viem-aws-kms-signer";
+import { awsKmsToAccount } from "@cuonghx/viem-aws-kms-signer";
 import { createWalletClient, http } from "viem";
 import { mainnet } from "viem/chains";
 

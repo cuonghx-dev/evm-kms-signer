@@ -6,11 +6,11 @@ Sign Ethereum transactions, messages, and typed data with keys held in cloud KMS
 
 | Package | Library | Cloud | Version |
 | --- | --- | --- | --- |
-| [`@cuonghx.gu-tech/ethers-aws-kms-signer`](./packages/ethers-aws-kms-signer) | ethers v6 | AWS KMS | 0.10.0 |
-| [`@cuonghx.gu-tech/ethers-gcp-kms-signer`](./packages/ethers-gcp-kms-signer) | ethers v6 | GCP Cloud KMS | 0.10.0 |
-| [`@cuonghx.gu-tech/viem-aws-kms-signer`](./packages/viem-aws-kms-signer) | viem v2 | AWS KMS | 0.1.0 |
-| [`@cuonghx.gu-tech/viem-gcp-kms-signer`](./packages/viem-gcp-kms-signer) | viem v2 | GCP Cloud KMS | 0.1.0 |
-| [`@cuonghx.gu-tech/kms-signer-core`](./packages/kms-signer-core) | — | — | 0.1.0 |
+| [`@cuonghx/ethers-aws-kms-signer`](./packages/ethers-aws-kms-signer) | ethers v6 | AWS KMS | 0.10.0 |
+| [`@cuonghx/ethers-gcp-kms-signer`](./packages/ethers-gcp-kms-signer) | ethers v6 | GCP Cloud KMS | 0.10.0 |
+| [`@cuonghx/viem-aws-kms-signer`](./packages/viem-aws-kms-signer) | viem v2 | AWS KMS | 0.1.0 |
+| [`@cuonghx/viem-gcp-kms-signer`](./packages/viem-gcp-kms-signer) | viem v2 | GCP Cloud KMS | 0.1.0 |
+| [`@cuonghx/kms-signer-core`](./packages/kms-signer-core) | — | — | 0.1.0 |
 
 `kms-signer-core` holds the shared, library-agnostic signing logic. You don't need to install it directly.
 
@@ -24,14 +24,14 @@ Sign Ethereum transactions, messages, and typed data with keys held in cloud KMS
 ### ethers v6
 
 ```sh
-npm install @cuonghx.gu-tech/ethers-aws-kms-signer
+npm install @cuonghx/ethers-aws-kms-signer
 # or
-npm install @cuonghx.gu-tech/ethers-gcp-kms-signer
+npm install @cuonghx/ethers-gcp-kms-signer
 ```
 
 ```typescript
-import { AwsKmsSigner } from "@cuonghx.gu-tech/ethers-aws-kms-signer";
-import { GcpKmsSigner } from "@cuonghx.gu-tech/ethers-gcp-kms-signer";
+import { AwsKmsSigner } from "@cuonghx/ethers-aws-kms-signer";
+import { GcpKmsSigner } from "@cuonghx/ethers-gcp-kms-signer";
 import { JsonRpcProvider } from "ethers";
 
 const provider = new JsonRpcProvider("https://...");
@@ -55,14 +55,14 @@ await awsSigner.sendTransaction({ to: "0x...", value: 1n });
 ### viem
 
 ```sh
-npm install viem @cuonghx.gu-tech/viem-aws-kms-signer
+npm install viem @cuonghx/viem-aws-kms-signer
 # or
-npm install viem @cuonghx.gu-tech/viem-gcp-kms-signer
+npm install viem @cuonghx/viem-gcp-kms-signer
 ```
 
 ```typescript
-import { awsKmsToAccount } from "@cuonghx.gu-tech/viem-aws-kms-signer";
-import { gcpKmsToAccount } from "@cuonghx.gu-tech/viem-gcp-kms-signer";
+import { awsKmsToAccount } from "@cuonghx/viem-aws-kms-signer";
+import { gcpKmsToAccount } from "@cuonghx/viem-gcp-kms-signer";
 import { createWalletClient, http, parseEther } from "viem";
 import { mainnet } from "viem/chains";
 

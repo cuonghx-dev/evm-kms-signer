@@ -5,13 +5,13 @@ GCP Cloud KMS account for [viem](https://viem.sh).
 ## Install
 
 ```sh
-npm install viem @cuonghx.gu-tech/viem-gcp-kms-signer
+npm install viem @cuonghx/viem-gcp-kms-signer
 ```
 
 ## Usage
 
 ```typescript
-import { gcpKmsToAccount } from "@cuonghx.gu-tech/viem-gcp-kms-signer";
+import { gcpKmsToAccount } from "@cuonghx/viem-gcp-kms-signer";
 import { createWalletClient, http } from "viem";
 import { mainnet } from "viem/chains";
 

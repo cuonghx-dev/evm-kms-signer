@@ -1,5 +1,5 @@
 {
-  "name": "@cuonghx.gu-tech/kms-signer-core",
+  "name": "@cuonghx/kms-signer-core",
   "version": "0.1.0",
   "description": "Cloud KMS secp256k1 signing primitives for EVM signers (library-agnostic)",
   "main": "dist/src/index.js",

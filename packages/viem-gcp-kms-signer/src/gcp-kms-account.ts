@@ -1,4 +1,4 @@
-import { KmsBackend, KmsKey, pemToDer } from "@cuonghx.gu-tech/kms-signer-core";
+import { KmsBackend, KmsKey, pemToDer } from "@cuonghx/kms-signer-core";
 import { KeyManagementServiceClient } from "@google-cloud/kms";
 import { ClientOptions } from "google-gax";
 import { LocalAccount } from "viem";

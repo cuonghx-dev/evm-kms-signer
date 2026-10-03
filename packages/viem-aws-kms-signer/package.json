@@ -1,5 +1,5 @@
 {
-  "name": "@cuonghx.gu-tech/viem-aws-kms-signer",
+  "name": "@cuonghx/viem-aws-kms-signer",
   "version": "0.1.0",
   "description": "AWS KMS account for viem",
   "main": "dist/src/index.js",
@@ -59,7 +59,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.523.0",
-    "@cuonghx.gu-tech/kms-signer-core": "^0.1.0"
+    "@cuonghx/kms-signer-core": "^0.1.0"
   },
   "publishConfig": {
     "access": "public"

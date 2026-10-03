@@ -9,7 +9,7 @@ The @google-cloud/kms integration with ethers@v6 signer
 ## Install
 
 ```sh
-npm install @cuonghx.gu-tech/ethers-gcp-kms-signer
+npm install @cuonghx/ethers-gcp-kms-signer
 ```
 
 ## Usage

@@ -1,4 +1,4 @@
-import { createLocalKmsBackend } from "@cuonghx.gu-tech/kms-signer-core";
+import { createLocalKmsBackend } from "@cuonghx/kms-signer-core";
 import { KeyManagementServiceClient } from "@google-cloud/kms";
 import { expect } from "chai";
 import {

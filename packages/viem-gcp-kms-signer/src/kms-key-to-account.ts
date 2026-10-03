@@ -1,4 +1,4 @@
-import { KmsKey } from "@cuonghx.gu-tech/kms-signer-core";
+import { KmsKey } from "@cuonghx/kms-signer-core";
 import {
   getAddress,
   hashMessage,

@@ -9,7 +9,7 @@ The @aws-sdk/client-kms integration with ethers@v6 signer
 ## Install
 
 ```sh
-npm install @cuonghx.gu-tech/ethers-aws-kms-signer
+npm install @cuonghx/ethers-aws-kms-signer
 ```
 
 ## Usage
