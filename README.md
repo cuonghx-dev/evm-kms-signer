@@ -30,7 +30,7 @@ npm install ethers                # for /ethers (v6)
 | --- | --- |
 | `@cuonghx/evm-kms-signer` | `createEvmKmsSigner`, `Kms`, `EvmKmsSigner`, key helpers |
 | `@cuonghx/evm-kms-signer/aws` | `awsKms` |
-| `@cuonghx/evm-kms-signer/gcp` | `gcpKms` |
+| `@cuonghx/evm-kms-signer/gcp` | `gcpKms`, `crc32c` |
 | `@cuonghx/evm-kms-signer/local` | `localKms` (in-memory key, for tests only) |
 | `@cuonghx/evm-kms-signer/viem` | `toViemAccount` |
 | `@cuonghx/evm-kms-signer/ethers` | `KmsEthersSigner` |
@@ -39,6 +39,8 @@ npm install ethers                # for /ethers (v6)
 
 - **AWS KMS**: create an asymmetric **Sign and verify** key with key spec `ECC_SECG_P256K1`.
 - **GCP Cloud KMS**: create a key with purpose **Asymmetric sign** and algorithm **Elliptic Curve secp256k1 - SHA256 Digest** (HSM protection level).
+
+Keys on any other curve (e.g. P-256) are rejected when the public key is fetched, rather than producing a wrong address.
 
 ## Usage
 
@@ -67,6 +69,8 @@ import { KeyManagementServiceClient } from "@google-cloud/kms";
 awsKms({ keyId, client: new KMSClient({ region, credentials }) });
 gcpKms({ keyVersionName, client: new KeyManagementServiceClient({ keyFilename }) });
 ```
+
+`gcpKms` follows GCP's [data integrity guidelines](https://cloud.google.com/kms/docs/data-integrity-guidelines): it sends a CRC32C of each digest and verifies the returned `name`, `pemCrc32c`, `signatureCrc32c` and `verifiedDigestCrc32c`. The official client returns all of these; a custom or mocked client must too.
 
 ### 2. Create the signer
 
@@ -125,7 +129,7 @@ const myKms: Kms<"myKms"> = {
 const signer = createEvmKmsSigner({ kms: myKms });
 ```
 
-`createEvmKmsSigner` handles DER parsing, low-s normalization (EIP-2), and recovery bit resolution. If your KMS returns PEM, convert it with `pemToDer`.
+`createEvmKmsSigner` handles DER parsing, curve validation, low-s normalization (EIP-2), and recovery bit resolution. If your KMS returns PEM, convert it with `pemToDer`.
 
 ## Migrating from the per-cloud packages
 
