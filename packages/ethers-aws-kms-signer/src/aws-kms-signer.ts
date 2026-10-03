@@ -4,9 +4,7 @@ import {
   KMSClient,
   SignCommand,
 } from "@aws-sdk/client-kms";
-import { ECDSASigValue } from "@peculiar/asn1-ecc";
-import { AsnConvert } from "@peculiar/asn1-schema";
-import { SubjectPublicKeyInfo } from "@peculiar/asn1-x509";
+import { KmsBackend, KmsKey } from "@cuonghx.gu-tech/kms-signer-core";
 import {
   AwsCredentialIdentity,
   AwsCredentialIdentityProvider,
@@ -20,15 +18,11 @@ import {
   getAddress,
   getBytes,
   hashMessage,
-  keccak256,
-  N as secp256k1N,
   Provider,
-  recoverAddress as recoverAddressFn,
   resolveAddress,
   resolveProperties,
   Signature,
   toBeHex,
-  toBigInt,
   Transaction,
   TransactionLike,
   TransactionRequest,
@@ -38,23 +32,27 @@ import {
 } from "ethers";
 
 export type EthersAwsKmsSignerConfig = {
-  credentials: AwsCredentialIdentityProvider | AwsCredentialIdentity;
-  region: string;
+  /** Falls back to the AWS SDK default credential chain when omitted */
+  credentials?: AwsCredentialIdentityProvider | AwsCredentialIdentity;
+  region?: string;
   keyId: string;
+  /** Pre-configured KMS client; takes precedence over `region`/`credentials` */
+  client?: KMSClient;
 };
 
 export class AwsKmsSigner<
   P extends null | Provider = null | Provider
 > extends AbstractSigner {
   private config: EthersAwsKmsSignerConfig;
-  private client: KMSClient;
-
-  address!: string;
+  private key: KmsKey;
 
   constructor(config: EthersAwsKmsSignerConfig, provider?: P) {
     super(provider);
     this.config = config;
-    this.client = this._createKMSClient(config.region, config.credentials);
+    const client =
+      config.client ??
+      new KMSClient({ region: config.region, credentials: config.credentials });
+    this.key = new KmsKey(createAwsKmsBackend(client, config.keyId));
   }
 
   connect(provider: Provider | null): AwsKmsSigner {
@@ -62,28 +60,7 @@ export class AwsKmsSigner<
   }
 
   async getAddress(): Promise<string> {
-    if (!this.address) {
-      const command = new GetPublicKeyCommand({ KeyId: this.config.keyId });
-      const response = await this.client.send(command);
-
-      const publicKeyHex = response.PublicKey;
-      if (!publicKeyHex) {
-        throw new Error(`Could not get Public Key from KMS.`);
-      }
-
-      const ecPublicKey = AsnConvert.parse(
-        Buffer.from(publicKeyHex),
-        SubjectPublicKeyInfo
-      ).subjectPublicKey;
-
-      // The public key starts with a 0x04 prefix that needs to be removed
-      // more info: https://www.oreilly.com/library/view/mastering-ethereum/9781491971932/ch04.html
-      this.address = `0x${keccak256(
-        new Uint8Array(ecPublicKey.slice(1, ecPublicKey.byteLength))
-      ).slice(-40)}`;
-    }
-
-    return this.address;
+    return getAddress(await this.key.getAddress());
   }
 
   async signTransaction(tx: TransactionRequest): Promise<string> {
@@ -164,13 +141,6 @@ export class AwsKmsSigner<
     return signature.serialized;
   }
 
-  private _createKMSClient(
-    region: string,
-    credentials: AwsCredentialIdentityProvider | AwsCredentialIdentity
-  ) {
-    return new KMSClient({ region, credentials });
-  }
-
   private async _sign(digest: BytesLike): Promise<Signature> {
     assertArgument(
       dataLength(digest) === 32,
@@ -179,40 +149,40 @@ export class AwsKmsSigner<
       digest
     );
 
-    const command = new SignCommand({
-      KeyId: this.config.keyId,
-      Message: getBytes(digest),
-      MessageType: "DIGEST",
-      SigningAlgorithm: "ECDSA_SHA_256",
-    });
-
-    const response = await this.client.send(command);
-    const signatureHex = response.Signature;
-
-    if (!signatureHex) {
-      throw new Error("Could not fetch Signature from KMS.");
-    }
-
-    const signature = AsnConvert.parse(
-      Buffer.from(signatureHex),
-      ECDSASigValue
-    );
-
-    let s = toBigInt(new Uint8Array(signature.s));
-    s = s > secp256k1N / BigInt(2) ? secp256k1N - s : s;
-
-    const recoverAddress = recoverAddressFn(digest, {
-      r: toBeHex(toBigInt(new Uint8Array(signature.r)), 32),
-      s: toBeHex(s, 32),
-      v: 0x1b,
-    });
-
-    const address = await this.getAddress();
+    const { r, s, yParity } = await this.key.sign(getBytes(digest));
 
     return Signature.from({
-      r: toBeHex(toBigInt(new Uint8Array(signature.r)), 32),
+      r: toBeHex(r, 32),
       s: toBeHex(s, 32),
-      v: recoverAddress.toLowerCase() !== address.toLowerCase() ? 0x1c : 0x1b,
+      yParity,
     });
   }
+}
+
+function createAwsKmsBackend(client: KMSClient, keyId: string): KmsBackend {
+  return {
+    async getPublicKey() {
+      const response = await client.send(
+        new GetPublicKeyCommand({ KeyId: keyId })
+      );
+      if (!response.PublicKey) {
+        throw new Error("Could not get Public Key from KMS.");
+      }
+      return response.PublicKey;
+    },
+    async sign(digest) {
+      const response = await client.send(
+        new SignCommand({
+          KeyId: keyId,
+          Message: digest,
+          MessageType: "DIGEST",
+          SigningAlgorithm: "ECDSA_SHA_256",
+        })
+      );
+      if (!response.Signature) {
+        throw new Error("Could not fetch Signature from KMS.");
+      }
+      return response.Signature;
+    },
+  };
 }

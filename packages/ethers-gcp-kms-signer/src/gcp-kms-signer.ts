@@ -1,7 +1,9 @@
+import {
+  KmsBackend,
+  KmsKey,
+  pemToDer,
+} from "@cuonghx.gu-tech/kms-signer-core";
 import { KeyManagementServiceClient } from "@google-cloud/kms";
-import { ECDSASigValue } from "@peculiar/asn1-ecc";
-import { AsnConvert } from "@peculiar/asn1-schema";
-import { SubjectPublicKeyInfo } from "@peculiar/asn1-x509";
 import {
   AbstractSigner,
   assert,
@@ -11,15 +13,11 @@ import {
   getAddress,
   getBytes,
   hashMessage,
-  keccak256,
-  N as secp256k1N,
   Provider,
-  recoverAddress as recoverAddressFn,
   resolveAddress,
   resolveProperties,
   Signature,
   toBeHex,
-  toBigInt,
   Transaction,
   TransactionLike,
   TransactionRequest,
@@ -29,8 +27,7 @@ import {
 } from "ethers";
 import { ClientOptions } from "google-gax";
 
-export type EthersGcpKmsSignerConfig = {
-  clientOptions?: ClientOptions;
+type GcpKeyVersionPath = {
   projectId: string;
   locationId: string;
   keyRingId: string;
@@ -38,24 +35,31 @@ export type EthersGcpKmsSignerConfig = {
   versionId: string;
 };
 
+export type EthersGcpKmsSignerConfig = {
+  clientOptions?: ClientOptions;
+  /** Pre-configured KMS client; takes precedence over `clientOptions` */
+  client?: KeyManagementServiceClient;
+} & (
+  | GcpKeyVersionPath
+  | {
+      /** Full key version resource name, e.g. `projects/p/locations/l/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1` */
+      keyVersionName: string;
+    }
+);
+
 export class GcpKmsSigner<
   P extends null | Provider = null | Provider
 > extends AbstractSigner {
   private config: EthersGcpKmsSignerConfig;
-  private client: KeyManagementServiceClient;
-  private versionName: string;
-  address!: string;
+  private key: KmsKey;
 
   constructor(config: EthersGcpKmsSignerConfig, provider?: P) {
     super(provider);
     this.config = config;
-    this.client = this._createKMSClient(config.clientOptions);
-    this.versionName = this.client.cryptoKeyVersionPath(
-      config.projectId,
-      config.locationId,
-      config.keyRingId,
-      config.keyId,
-      config.versionId
+    const client =
+      config.client ?? new KeyManagementServiceClient(config.clientOptions);
+    this.key = new KmsKey(
+      createGcpKmsBackend(client, resolveKeyVersionName(client, config))
     );
   }
 
@@ -64,37 +68,7 @@ export class GcpKmsSigner<
   }
 
   async getAddress(): Promise<string> {
-    if (!this.address) {
-      // const command = new GetPublicKeyCommand({ KeyId: this.config.keyId });
-      // const response = await this.client.send(command);
-      const request = {
-        name: this.versionName,
-      };
-      const [publicKeyHex] = await this.client.getPublicKey(request);
-
-      if (!publicKeyHex || !publicKeyHex.pem) {
-        throw new Error(`Could not get Public Key from KMS.`);
-      }
-
-      const base64Key = publicKeyHex.pem
-        .replace(/-----BEGIN PUBLIC KEY-----/g, "")
-        .replace(/-----END PUBLIC KEY-----/g, "")
-        .replace(/\n/g, "")
-        .trim();
-
-      const ecPublicKey = AsnConvert.parse(
-        Buffer.from(base64Key, "base64"),
-        SubjectPublicKeyInfo
-      ).subjectPublicKey;
-
-      // The public key starts with a 0x04 prefix that needs to be removed
-      // more info: https://www.oreilly.com/library/view/mastering-ethereum/9781491971932/ch04.html
-      this.address = `0x${keccak256(
-        new Uint8Array(ecPublicKey.slice(1, ecPublicKey.byteLength))
-      ).slice(-40)}`;
-    }
-
-    return this.address;
+    return getAddress(await this.key.getAddress());
   }
 
   async signTransaction(tx: TransactionRequest): Promise<string> {
@@ -175,10 +149,6 @@ export class GcpKmsSigner<
     return signature.serialized;
   }
 
-  private _createKMSClient(opts?: ClientOptions) {
-    return new KeyManagementServiceClient(opts);
-  }
-
   private async _sign(digest: BytesLike): Promise<Signature> {
     assertArgument(
       dataLength(digest) === 32,
@@ -187,37 +157,53 @@ export class GcpKmsSigner<
       digest
     );
 
-    const [signatureHex] = await this.client.asymmetricSign({
-      name: this.versionName,
-      digest: {
-        sha256: getBytes(digest),
-      },
-    });
-
-    if (!signatureHex || !signatureHex.signature) {
-      throw new Error("Could not fetch Signature from KMS.");
-    }
-
-    const signature = AsnConvert.parse(
-      signatureHex.signature as Uint8Array,
-      ECDSASigValue
-    );
-
-    let s = toBigInt(new Uint8Array(signature.s));
-    s = s > secp256k1N / BigInt(2) ? secp256k1N - s : s;
-
-    const recoverAddress = recoverAddressFn(digest, {
-      r: toBeHex(toBigInt(new Uint8Array(signature.r)), 32),
-      s: toBeHex(s, 32),
-      v: 0x1b,
-    });
-
-    const address = await this.getAddress();
+    const { r, s, yParity } = await this.key.sign(getBytes(digest));
 
     return Signature.from({
-      r: toBeHex(toBigInt(new Uint8Array(signature.r)), 32),
+      r: toBeHex(r, 32),
       s: toBeHex(s, 32),
-      v: recoverAddress.toLowerCase() !== address.toLowerCase() ? 0x1c : 0x1b,
+      yParity,
     });
   }
+}
+
+function resolveKeyVersionName(
+  client: KeyManagementServiceClient,
+  config: EthersGcpKmsSignerConfig
+): string {
+  if ("keyVersionName" in config) {
+    return config.keyVersionName;
+  }
+  return client.cryptoKeyVersionPath(
+    config.projectId,
+    config.locationId,
+    config.keyRingId,
+    config.keyId,
+    config.versionId
+  );
+}
+
+function createGcpKmsBackend(
+  client: KeyManagementServiceClient,
+  name: string
+): KmsBackend {
+  return {
+    async getPublicKey() {
+      const [publicKey] = await client.getPublicKey({ name });
+      if (!publicKey?.pem) {
+        throw new Error("Could not get Public Key from KMS.");
+      }
+      return pemToDer(publicKey.pem);
+    },
+    async sign(digest) {
+      const [response] = await client.asymmetricSign({
+        name,
+        digest: { sha256: digest },
+      });
+      if (!response?.signature) {
+        throw new Error("Could not fetch Signature from KMS.");
+      }
+      return new Uint8Array(response.signature as Uint8Array);
+    },
+  };
 }

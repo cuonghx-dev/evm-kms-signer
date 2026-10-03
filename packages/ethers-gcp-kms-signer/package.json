@@ -1,6 +1,6 @@
 {
   "name": "@cuonghx.gu-tech/ethers-gcp-kms-signer",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "description": "The @google-cloud/kms integration with ethers@v6 signer",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
@@ -10,12 +10,14 @@
   ],
   "scripts": {
     "eslint": "eslint ./",
-    "test": "ts-mocha --files -r tsconfig-paths/register test/*.spec.ts -timeout 20000",
-    "build": "tsc"
+    "test": "ts-mocha --files -r tsconfig-paths/register 'test/**/*.unit.spec.ts'",
+    "build": "tsc",
+    "test:e2e": "ts-mocha --files -r tsconfig-paths/register 'test/**/*.e2e.spec.ts' --timeout 20000"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/0xcuonghx/ethers-kms-signer.git"
+    "url": "git+https://github.com/cuonghx-dev/evm-kms-signer.git",
+    "directory": "packages/ethers-gcp-kms-signer"
   },
   "keywords": [
     "@google-cloud/kms",
@@ -24,13 +26,13 @@
   "author": "cuonghx-gutech <cuonghx@gu-tech.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/0xcuonghx/ethers-kms-signer/issues"
+    "url": "https://github.com/cuonghx-dev/evm-kms-signer/issues"
   },
-  "homepage": "https://github.com/0xcuonghx/ethers-kms-signer",
+  "homepage": "https://github.com/cuonghx-dev/evm-kms-signer#readme",
   "devDependencies": {
     "@types/chai": "^4.3.4",
     "@types/mocha": "^10.0.1",
-    "@types/node": "^18.13.0",
+    "@types/node": "^20.17.0",
     "@typescript-eslint/eslint-plugin": "^5.51.0",
     "@typescript-eslint/parser": "^5.51.0",
     "chai": "^4.3.7",
@@ -50,13 +52,11 @@
     "ts-mocha": "^10.0.0",
     "ts-node": "^10.9.1",
     "tsconfig-paths": "^4.1.2",
-    "typescript": "^4.9.5"
+    "typescript": "^5.4.5"
   },
   "dependencies": {
+    "@cuonghx.gu-tech/kms-signer-core": "^0.1.0",
     "@google-cloud/kms": "^4.2.0",
-    "@peculiar/asn1-ecc": "^2.3.8",
-    "@peculiar/asn1-schema": "^2.3.8",
-    "@peculiar/asn1-x509": "^2.3.8",
     "ethers": "^6.11.1",
     "google-gax": "^4.3.8"
   },

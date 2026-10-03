@@ -1,8 +1,8 @@
 import { expect } from "chai";
 import dotenv from "dotenv";
+import { ethers, recoverAddress, solidityPackedKeccak256 } from "ethers";
 
 import { AwsKmsSigner } from "../src/aws-kms-signer";
-import { ethers, recoverAddress, solidityPackedKeccak256 } from "ethers";
 
 dotenv.config();
 
@@ -22,7 +22,7 @@ context("AwsKmsSigner", () => {
     });
 
     it("Should return correct public key", async () => {
-      expect(await signer.getAddress()).to.eql(
+      expect((await signer.getAddress()).toLowerCase()).to.eql(
         "0x27d30941a21923e25a7429e3e576e9609c012a27"
       );
     });
