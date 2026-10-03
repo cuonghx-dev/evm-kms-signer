@@ -1,9 +1,0 @@
-# General
-
-node_modules
-.DS_Store
-.nvmrc
-.env
-
-# TypeScript
-dist
