@@ -4,46 +4,51 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Lerna monorepo providing ethers.js v6 `AbstractSigner` implementations backed by cloud KMS (AWS and GCP).
+`evm-kms-signer`: a Lerna + npm workspaces monorepo of EVM signers backed by cloud KMS (AWS and GCP), for both ethers.js v6 and viem v2.
 
 ## Packages
 
-- `packages/ethers-aws-kms-signer` — `AwsKmsSigner` using `@aws-sdk/client-kms`
-- `packages/ethers-gcp-kms-signer` — `GcpKmsSigner` using `@google-cloud/kms`
+- `packages/kms-signer-core`: library-agnostic signing logic (`KmsKey`, `KmsBackend`, SPKI/PEM parsing, `createLocalKmsBackend` for tests)
+- `packages/ethers-aws-kms-signer`: `AwsKmsSigner` (ethers `AbstractSigner`) using `@aws-sdk/client-kms`
+- `packages/ethers-gcp-kms-signer`: `GcpKmsSigner` (ethers `AbstractSigner`) using `@google-cloud/kms`
+- `packages/viem-aws-kms-signer`: `awsKmsToAccount()` returns a viem `LocalAccount`
+- `packages/viem-gcp-kms-signer`: `gcpKmsToAccount()` returns a viem `LocalAccount`
 
 ## Commands
 
-All commands run from individual package directories (e.g., `cd packages/ethers-aws-kms-signer`):
+From repo root:
 
 ```bash
-# Build (TypeScript → dist/)
-npm run build
-
-# Lint
+npm install      # all workspaces
+npm run build    # lerna run build (core builds first; adapters import core's dist/)
+npm test         # unit tests with mocked KMS, no credentials
 npm run eslint
-
-# Tests (signer packages only, requires KMS credentials)
-npm test
-# Single test file
-npx ts-mocha --files -r tsconfig-paths/register test/some-file.spec.ts
 ```
 
-Install dependencies from repo root:
+From a package directory:
+
 ```bash
-npm install
+npm run build
+npm test                 # test/**/*.unit.spec.ts
+npm run test:e2e         # ethers packages only, real KMS, needs .env (see .env.example)
+npx ts-mocha --files -r tsconfig-paths/register test/some-file.unit.spec.ts
 ```
+
+Rebuild `kms-signer-core` after changing it. Adapters resolve it through the workspace symlink to its `dist/`.
 
 ## Architecture
 
-Both signers follow the same pattern:
-1. Extend `ethers.AbstractSigner` and implement `getAddress()`, `signTransaction()`, `signMessage()`, `signTypedData()`
-2. `getAddress()` fetches the public key from KMS, parses the ASN.1 `SubjectPublicKeyInfo` via `@peculiar/asn1-*`, strips the `0x04` prefix, and derives the Ethereum address via `keccak256`
-3. `_sign(digest)` sends a 32-byte digest to KMS for ECDSA signing, parses the ASN.1 `ECDSASigValue`, normalizes `s` to low-s (EIP-2), and recovers `v` by comparing the recovered address
+- `kms-signer-core` defines `KmsBackend { getPublicKey(): DER SPKI; sign(digest): DER ECDSA sig }`. `KmsKey` caches the public key and address. `sign()` parses the DER signature with `@noble/curves`, normalizes to low-s (EIP-2), and resolves `yParity` by recovering the public key. It throws if neither parity matches.
+- Each adapter has a small cloud backend (`createAwsKmsBackend` / `createGcpKmsBackend`). It is duplicated between the ethers and viem packages for the same cloud.
+- ethers adapters extend `AbstractSigner` and delegate `_sign(digest)` to `KmsKey`.
+- viem adapters share `kms-key-to-account.ts` (duplicated in both viem packages), which wraps `KmsKey` with `toAccount`.
+- Every config accepts an optional `client` so tests can inject a mock. Unit tests compare viem output byte-for-byte with `privateKeyToAccount` (RFC 6979 is deterministic).
 
 ## Key Dependencies
 
-- `ethers` v6 — core Ethereum library
-- `@peculiar/asn1-ecc`, `@peculiar/asn1-schema`, `@peculiar/asn1-x509` — ASN.1 parsing for KMS public keys and signatures
+- `ethers` v6 (dependency of the ethers packages), `viem` v2 (peer dependency of the viem packages)
+- `@noble/curves`, `@noble/hashes` v1 (CJS-compatible), `@peculiar/asn1-x509` for SPKI parsing
+- TypeScript 5 (root pins it so TS 7 isn't hoisted, which would break typescript-eslint)
 - Testing: Mocha + Chai via `ts-mocha`
 
 ## npm Scope
