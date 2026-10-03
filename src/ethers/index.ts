@@ -3,6 +3,7 @@ import {
   assert,
   assertArgument,
   BytesLike,
+  copyRequest,
   dataLength,
   getAddress,
   getBytes,
@@ -35,7 +36,7 @@ export class KmsEthersSigner<
     this.signer = signer;
   }
 
-  connect(provider: Provider | null): KmsEthersSigner {
+  connect<Q extends null | Provider>(provider: Q): KmsEthersSigner<Q> {
     return new KmsEthersSigner(this.signer, provider);
   }
 
@@ -43,7 +44,10 @@ export class KmsEthersSigner<
     return this.signer.getAddress();
   }
 
-  async signTransaction(tx: TransactionRequest): Promise<string> {
+  async signTransaction(request: TransactionRequest): Promise<string> {
+    // Work on a copy so the caller's request is left untouched
+    const tx = copyRequest(request);
+
     // Replace any Addressable or ENS name with an address
     const { to, from } = await resolveProperties({
       to: tx.to ? resolveAddress(tx.to, this.provider) : undefined,

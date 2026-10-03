@@ -1,5 +1,6 @@
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { expect } from "chai";
+import { generateKeyPairSync } from "crypto";
 
 import { createEvmKmsSigner, Kms, pemToDer, publicKeyFromSpki } from "../src";
 import { localKms } from "../src/kms/local";
@@ -78,6 +79,29 @@ context("createEvmKmsSigner", () => {
     expect(
       Buffer.from(publicKeyFromSpki(pemToDer(kms.publicKeyPem())))
     ).to.deep.equal(Buffer.from(secp256k1.getPublicKey(PRIVATE_KEY, false)));
+  });
+
+  it("rejects a public key on another curve", async () => {
+    // P-256 keys have the same 65-byte uncompressed encoding as secp256k1
+    const { publicKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
+    const spki = new Uint8Array(
+      publicKey.export({ type: "spki", format: "der" })
+    );
+    const signer = createEvmKmsSigner({
+      kms: {
+        ...localKms({ privateKey: PRIVATE_KEY }),
+        getPublicKey: async () => spki,
+      },
+    });
+    await expectRejects(signer.getAddress(), "not a secp256k1 key");
+  });
+
+  it("rejects a public key that is not on the curve", () => {
+    const spki = pemToDer(localKms({ privateKey: PRIVATE_KEY }).publicKeyPem());
+    spki[spki.length - 1] ^= 0x01;
+    expect(() => publicKeyFromSpki(spki)).to.throw(
+      "not a valid secp256k1 point"
+    );
   });
 
   for (const forceHighS of [false, true]) {

@@ -4,7 +4,7 @@ import { hexToBytes, parseEther, parseGwei } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 import { createEvmKmsSigner } from "../src";
-import { gcpKms } from "../src/kms/gcp";
+import { crc32c, gcpKms } from "../src/kms/gcp";
 import { localKms } from "../src/kms/local";
 import { toViemAccount } from "../src/viem";
 
@@ -17,7 +17,12 @@ const KEY_VERSION_NAME =
   "projects/p/locations/global/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1";
 
 function mockClient(
-  options: { forceHighS?: boolean; signingKey?: `0x${string}` } = {}
+  options: {
+    forceHighS?: boolean;
+    signingKey?: `0x${string}`;
+    corruptSignature?: boolean;
+    skipDigestCheck?: boolean;
+  } = {}
 ) {
   const backend = localKms({ privateKey: hexToBytes(PRIVATE_KEY) });
   const signer = localKms({
@@ -27,17 +32,34 @@ function mockClient(
   return {
     async getPublicKey({ name }: { name: string }) {
       expect(name).to.equal(KEY_VERSION_NAME);
-      return [{ pem: backend.publicKeyPem() }];
+      const pem = backend.publicKeyPem();
+      return [{ name, pem, pemCrc32c: { value: crc32c(Buffer.from(pem)) } }];
     },
     async asymmetricSign({
       name,
       digest,
+      digestCrc32c,
     }: {
       name: string;
       digest: { sha256: Uint8Array };
+      digestCrc32c: { value: number };
     }) {
       expect(name).to.equal(KEY_VERSION_NAME);
-      return [{ signature: await signer.sign(digest.sha256) }];
+      const signature = await signer.sign(digest.sha256);
+      const signatureCrc32c = crc32c(signature);
+      if (options.corruptSignature) {
+        signature[signature.length - 1] ^= 0x01;
+      }
+      return [
+        {
+          name,
+          signature,
+          signatureCrc32c: { value: String(signatureCrc32c) },
+          verifiedDigestCrc32c:
+            !options.skipDigestCheck &&
+            digestCrc32c.value === crc32c(digest.sha256),
+        },
+      ];
     },
   } as unknown as KeyManagementServiceClient;
 }
@@ -144,6 +166,31 @@ context("gcpKms + toViemAccount (mock KMS)", () => {
           ).signAuthorization!(authorization)
         ).to.deep.equal(await reference.signAuthorization(authorization));
       });
+    });
+  }
+
+  it("computes CRC32C", () => {
+    expect(crc32c(Buffer.from("123456789"))).to.equal(0xe3069283);
+  });
+
+  for (const [option, message] of [
+    ["corruptSignature", "signature failed the CRC32C check"],
+    ["skipDigestCheck", "digest failed the CRC32C check"],
+  ] as const) {
+    it(`rejects when ${option}`, async () => {
+      const signer = createEvmKmsSigner({
+        kms: gcpKms({
+          keyVersionName: KEY_VERSION_NAME,
+          client: mockClient({ [option]: true }),
+        }),
+      });
+      try {
+        await signer.sign(hexToBytes(HASH));
+      } catch (error) {
+        expect((error as Error).message).to.include(message);
+        return;
+      }
+      expect.fail("Expected sign to reject");
     });
   }
 

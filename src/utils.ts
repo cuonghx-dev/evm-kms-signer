@@ -23,6 +23,11 @@ export type RecoveredSignature = {
 };
 
 const UNCOMPRESSED_PUBLIC_KEY_LENGTH = 65;
+const EC_PUBLIC_KEY_OID = "1.2.840.10045.2.1";
+// DER-encoded OBJECT IDENTIFIER 1.3.132.0.10 (secp256k1)
+const SECP256K1_CURVE_OID_DER = Uint8Array.from([
+  0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x0a,
+]);
 
 export function pemToDer(pem: string): Uint8Array {
   const base64 = pem
@@ -37,14 +42,29 @@ export function pemToDer(pem: string): Uint8Array {
  * DER-encoded `SubjectPublicKeyInfo`.
  */
 export function publicKeyFromSpki(der: Uint8Array): Uint8Array {
-  const publicKey = new Uint8Array(
-    AsnConvert.parse(der, SubjectPublicKeyInfo).subjectPublicKey
-  );
+  const spki = AsnConvert.parse(der, SubjectPublicKeyInfo);
+  const { algorithm, parameters } = spki.algorithm;
+  // Other EC curves (e.g. P-256) share the same 65-byte encoding, so check the
+  // curve explicitly instead of deriving a wrong address from them.
+  if (
+    algorithm !== EC_PUBLIC_KEY_OID ||
+    !parameters ||
+    !equalBytes(new Uint8Array(parameters), SECP256K1_CURVE_OID_DER)
+  ) {
+    throw new Error("KMS public key is not a secp256k1 key.");
+  }
+
+  const publicKey = new Uint8Array(spki.subjectPublicKey);
   if (
     publicKey.length !== UNCOMPRESSED_PUBLIC_KEY_LENGTH ||
     publicKey[0] !== 0x04
   ) {
     throw new Error("KMS public key is not an uncompressed secp256k1 key.");
+  }
+  try {
+    secp256k1.ProjectivePoint.fromHex(publicKey).assertValidity();
+  } catch {
+    throw new Error("KMS public key is not a valid secp256k1 point.");
   }
   return publicKey;
 }

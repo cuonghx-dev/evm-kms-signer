@@ -1,13 +1,13 @@
 export {
   createEvmKmsSigner,
-  CreateEvmKmsSignerParameters,
-  EvmKmsSigner,
+  type CreateEvmKmsSignerParameters,
+  type EvmKmsSigner,
 } from "./create-evm-kms-signer";
 export {
-  Kms,
+  type Kms,
   pemToDer,
   publicKeyFromSpki,
   publicKeyToAddress,
-  RecoveredSignature,
+  type RecoveredSignature,
   signDigest,
 } from "./utils";

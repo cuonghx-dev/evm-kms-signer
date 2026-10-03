@@ -115,6 +115,18 @@ context("KmsEthersSigner", () => {
     provider.destroy();
   });
 
+  it("does not modify the transaction request", async () => {
+    const signer = new KmsEthersSigner(kmsSigner());
+    const request = {
+      from: await signer.getAddress(),
+      to: "0x0000000000000000000000000000000000007e57",
+      chainId: 1,
+    };
+    const copy = { ...request };
+    await signer.signTransaction(request);
+    expect(request).to.deep.equal(copy);
+  });
+
   it("rejects a transaction from another address", async () => {
     const signer = new KmsEthersSigner(kmsSigner());
     try {
