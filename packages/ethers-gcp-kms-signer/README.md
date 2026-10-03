@@ -21,6 +21,12 @@ npm install @cuonghx.gu-tech/ethers-gcp-kms-signer
 
 ```javascript
 signer = new GcpKmsSigner({
+  keyVersionName:
+    "projects/p/locations/global/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1",
+});
+
+// or
+signer = new GcpKmsSigner({
   projectId: "",
   locationId: "",
   keyRingId: "",

@@ -1,8 +1,8 @@
 import { expect } from "chai";
 import dotenv from "dotenv";
+import { ethers, recoverAddress, solidityPackedKeccak256 } from "ethers";
 
 import { GcpKmsSigner } from "../src/gcp-kms-signer";
-import { ethers, recoverAddress, solidityPackedKeccak256 } from "ethers";
 
 dotenv.config();
 
@@ -20,7 +20,7 @@ context("GcpKmsSigner", () => {
   });
 
   it("Should return correct public key", async () => {
-    expect(await signer.getAddress()).to.eql(
+    expect((await signer.getAddress()).toLowerCase()).to.eql(
       "0x4fde0bb456be6ccc6ee38c04cec17ceff737c125"
     );
   });

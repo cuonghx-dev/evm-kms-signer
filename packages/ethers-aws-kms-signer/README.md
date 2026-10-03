@@ -24,3 +24,5 @@ npm install @cuonghx.gu-tech/ethers-aws-kms-signer
     },
   });
 ```
+
+`credentials` and `region` are optional and fall back to the AWS SDK default chain. Pass `client` to use your own `KMSClient`.
