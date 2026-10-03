@@ -4,53 +4,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-`evm-kms-signer`: a Lerna + npm workspaces monorepo of EVM signers backed by cloud KMS (AWS and GCP), for both ethers.js v6 and viem v2.
+`@cuonghx/evm-kms-signer`: a single package of EVM signers backed by a pluggable KMS (AWS, GCP, or custom), with adapters for viem v2 and ethers v6. Users compose `createEvmKmsSigner({ kms: awsKms(...) })` with `toViemAccount` / `KmsEthersSigner`.
 
-## Packages
+## Layout
 
-- `packages/kms-signer-core`: library-agnostic signing logic (`KmsKey`, `KmsBackend`, SPKI/PEM parsing, `createLocalKmsBackend` for tests)
-- `packages/ethers-aws-kms-signer`: `AwsKmsSigner` (ethers `AbstractSigner`) using `@aws-sdk/client-kms`
-- `packages/ethers-gcp-kms-signer`: `GcpKmsSigner` (ethers `AbstractSigner`) using `@google-cloud/kms`
-- `packages/viem-aws-kms-signer`: `awsKmsToAccount()` returns a viem `LocalAccount`
-- `packages/viem-gcp-kms-signer`: `gcpKmsToAccount()` returns a viem `LocalAccount`
+- `src/utils.ts`: `Kms` type, SPKI/PEM parsing, EIP-55 address, `signDigest` (low-s + yParity recovery)
+- `src/create-evm-kms-signer.ts`: `createEvmKmsSigner` → `EvmKmsSigner` (caches public key, retries after failure)
+- `src/kms/{aws,gcp,local}.ts`: `awsKms`, `gcpKms`, `localKms` factories returning `Kms`
+- `src/viem/index.ts`: `toViemAccount` (viem `LocalAccount`, `source` = `kms.type`)
+- `src/ethers/index.ts`: `KmsEthersSigner` (ethers `AbstractSigner`)
+
+Each file under `src/kms`, `src/viem`, `src/ethers` is its own subpath export (`/aws`, `/gcp`, `/local`, `/viem`, `/ethers`), mapped in `tsup.config.ts` and `package.json` `exports`/`typesVersions`. Keep them in sync when adding an entry.
 
 ## Commands
 
-From repo root:
-
 ```bash
-npm install      # all workspaces
-npm run build    # lerna run build (core builds first; adapters import core's dist/)
-npm test         # unit tests with mocked KMS, no credentials
+npm install
+npm run build        # tsup → dist/ (CJS .js + ESM .mjs + .d.ts/.d.mts)
+npm test             # test/**/*.unit.spec.ts, mocked KMS, no credentials
+npm run typecheck
 npm run eslint
+npm run test:e2e     # real KMS, needs .env (see .env.example)
+npx ts-mocha --files --extension ts test/some-file.unit.spec.ts
 ```
 
-From a package directory:
+Tests run against `src/` directly; no build needed.
 
-```bash
-npm run build
-npm test                 # test/**/*.unit.spec.ts
-npm run test:e2e         # ethers packages only, real KMS, needs .env (see .env.example)
-npx ts-mocha --files -r tsconfig-paths/register test/some-file.unit.spec.ts
-```
+## Conventions
 
-Rebuild `kms-signer-core` after changing it. Adapters resolve it through the workspace symlink to its `dist/`.
-
-## Architecture
-
-- `kms-signer-core` defines `KmsBackend { getPublicKey(): DER SPKI; sign(digest): DER ECDSA sig }`. `KmsKey` caches the public key and address. `sign()` parses the DER signature with `@noble/curves`, normalizes to low-s (EIP-2), and resolves `yParity` by recovering the public key. It throws if neither parity matches.
-- Each adapter has a small cloud backend (`createAwsKmsBackend` / `createGcpKmsBackend`). It is duplicated between the ethers and viem packages for the same cloud.
-- ethers adapters extend `AbstractSigner` and delegate `_sign(digest)` to `KmsKey`.
-- viem adapters share `kms-key-to-account.ts` (duplicated in both viem packages), which wraps `KmsKey` with `toAccount`.
-- Every config accepts an optional `client` so tests can inject a mock. Unit tests compare viem output byte-for-byte with `privateKeyToAccount` (RFC 6979 is deterministic).
-
-## Key Dependencies
-
-- `ethers` v6 (dependency of the ethers packages), `viem` v2 (peer dependency of the viem packages)
-- `@noble/curves`, `@noble/hashes` v1 (CJS-compatible), `@peculiar/asn1-x509` for SPKI parsing
-- TypeScript 5 (root pins it so TS 7 isn't hoisted, which would break typescript-eslint)
-- Testing: Mocha + Chai via `ts-mocha`
+- `@aws-sdk/client-kms`, `@google-cloud/kms`, `viem`, `ethers` are optional peer dependencies. Only import them from their own subpath entry, never from `src/index.ts` or `src/utils.ts`.
+- Every cloud factory accepts an optional `client` so tests can inject a mock.
+- Unit tests compare viem/ethers output byte-for-byte with `privateKeyToAccount` / `ethers.Wallet` (RFC 6979 is deterministic).
+- `@noble/curves`, `@noble/hashes` stay on v1 (CJS-compatible). TypeScript pinned to 5 so TS 7 isn't hoisted (breaks typescript-eslint).
 
 ## npm Scope
 
-All packages publish under `@cuonghx/` with public access.
+Publishes as `@cuonghx/evm-kms-signer` with public access.

@@ -1,18 +1,39 @@
 # evm-kms-signer
 
-Sign Ethereum transactions, messages, and typed data with keys held in cloud KMS (AWS KMS, GCP Cloud KMS). Works with **ethers v6** and **viem**.
+Sign Ethereum transactions, messages, and typed data with keys held in a KMS. Ships backends for **AWS KMS** and **GCP Cloud KMS**, accepts any KMS you plug in yourself, and works with **viem v2** and **ethers v6**.
 
-## Packages
+```typescript
+import { createEvmKmsSigner } from "@cuonghx/evm-kms-signer";
+import { awsKms } from "@cuonghx/evm-kms-signer/aws";
+import { toViemAccount } from "@cuonghx/evm-kms-signer/viem";
 
-| Package | Library | Cloud | Version |
-| --- | --- | --- | --- |
-| [`@cuonghx/ethers-aws-kms-signer`](./packages/ethers-aws-kms-signer) | ethers v6 | AWS KMS | 0.10.0 |
-| [`@cuonghx/ethers-gcp-kms-signer`](./packages/ethers-gcp-kms-signer) | ethers v6 | GCP Cloud KMS | 0.10.0 |
-| [`@cuonghx/viem-aws-kms-signer`](./packages/viem-aws-kms-signer) | viem v2 | AWS KMS | 0.1.0 |
-| [`@cuonghx/viem-gcp-kms-signer`](./packages/viem-gcp-kms-signer) | viem v2 | GCP Cloud KMS | 0.1.0 |
-| [`@cuonghx/kms-signer-core`](./packages/kms-signer-core) | — | — | 0.1.0 |
+const signer = createEvmKmsSigner({
+  kms: awsKms({ keyId: "your-kms-key-id", region: "us-east-1" }),
+});
+const account = await toViemAccount(signer);
+```
 
-`kms-signer-core` holds the shared, library-agnostic signing logic. You don't need to install it directly.
+## Install
+
+The cloud SDKs and signing libraries are optional peer dependencies. Install only the ones you use:
+
+```sh
+npm install @cuonghx/evm-kms-signer
+
+npm install @aws-sdk/client-kms   # for /aws
+npm install @google-cloud/kms     # for /gcp
+npm install viem                  # for /viem (>= 2.24.0)
+npm install ethers                # for /ethers (v6)
+```
+
+| Import | Exports |
+| --- | --- |
+| `@cuonghx/evm-kms-signer` | `createEvmKmsSigner`, `Kms`, `EvmKmsSigner`, key helpers |
+| `@cuonghx/evm-kms-signer/aws` | `awsKms` |
+| `@cuonghx/evm-kms-signer/gcp` | `gcpKms` |
+| `@cuonghx/evm-kms-signer/local` | `localKms` (in-memory key, for tests only) |
+| `@cuonghx/evm-kms-signer/viem` | `toViemAccount` |
+| `@cuonghx/evm-kms-signer/ethers` | `KmsEthersSigner` |
 
 ## Key setup
 
@@ -21,87 +42,112 @@ Sign Ethereum transactions, messages, and typed data with keys held in cloud KMS
 
 ## Usage
 
-### ethers v6
-
-```sh
-npm install @cuonghx/ethers-aws-kms-signer
-# or
-npm install @cuonghx/ethers-gcp-kms-signer
-```
+### 1. Pick a KMS
 
 ```typescript
-import { AwsKmsSigner } from "@cuonghx/ethers-aws-kms-signer";
-import { GcpKmsSigner } from "@cuonghx/ethers-gcp-kms-signer";
-import { JsonRpcProvider } from "ethers";
+import { awsKms } from "@cuonghx/evm-kms-signer/aws";
+import { gcpKms } from "@cuonghx/evm-kms-signer/gcp";
 
-const provider = new JsonRpcProvider("https://...");
+const aws = awsKms({ keyId: "your-kms-key-id", region: "us-east-1" });
 
-const awsSigner = new AwsKmsSigner(
-  { keyId: "your-kms-key-id", region: "us-east-1" },
-  provider
-);
-
-const gcpSigner = new GcpKmsSigner(
-  {
-    keyVersionName:
-      "projects/my-project/locations/global/keyRings/my-ring/cryptoKeys/my-key/cryptoKeyVersions/1",
-  },
-  provider
-);
-
-await awsSigner.sendTransaction({ to: "0x...", value: 1n });
-```
-
-### viem
-
-```sh
-npm install viem @cuonghx/viem-aws-kms-signer
-# or
-npm install viem @cuonghx/viem-gcp-kms-signer
-```
-
-```typescript
-import { awsKmsToAccount } from "@cuonghx/viem-aws-kms-signer";
-import { gcpKmsToAccount } from "@cuonghx/viem-gcp-kms-signer";
-import { createWalletClient, http, parseEther } from "viem";
-import { mainnet } from "viem/chains";
-
-const account = await gcpKmsToAccount({
+const gcp = gcpKms({
   keyVersionName:
     "projects/my-project/locations/global/keyRings/my-ring/cryptoKeys/my-key/cryptoKeyVersions/1",
 });
-// or: await awsKmsToAccount({ keyId: "your-kms-key-id", region: "us-east-1" })
-
-const client = createWalletClient({ account, chain: mainnet, transport: http() });
-await client.sendTransaction({ to: "0x...", value: parseEther("0.001") });
 ```
 
-The viem account supports `sign`, `signMessage`, `signTypedData`, `signTransaction` (including EIP-4844), and `signAuthorization` (EIP-7702).
+GCP also accepts the key path as separate fields (`projectId`, `locationId`, `keyRingId`, `keyId`, `versionId`).
 
-### Credentials and custom clients
-
-All packages use the cloud SDK's default credential chain when no credentials are passed. To control the client (credentials, endpoint, retries), pass your own:
+Both use the cloud SDK's default credential chain when no credentials are passed. To control the client (credentials, endpoint, retries), pass your own:
 
 ```typescript
 import { KMSClient } from "@aws-sdk/client-kms";
 import { KeyManagementServiceClient } from "@google-cloud/kms";
 
-new AwsKmsSigner({ keyId, client: new KMSClient({ region, credentials }) });
-await gcpKmsToAccount({ keyVersionName, client: new KeyManagementServiceClient({ keyFilename }) });
+awsKms({ keyId, client: new KMSClient({ region, credentials }) });
+gcpKms({ keyVersionName, client: new KeyManagementServiceClient({ keyFilename }) });
 ```
 
-GCP also accepts the key path as separate fields (`projectId`, `locationId`, `keyRingId`, `keyId`, `versionId`) instead of `keyVersionName`.
+### 2. Create the signer
+
+```typescript
+import { createEvmKmsSigner } from "@cuonghx/evm-kms-signer";
+
+const signer = createEvmKmsSigner({ kms: aws });
+
+await signer.getAddress(); // EIP-55 checksummed
+await signer.sign(digest); // { r, s, yParity }, low-s normalized
+```
+
+Nothing is fetched until first use. The public key is fetched once and cached.
+
+### 3. Use it with viem or ethers
+
+**viem**
+
+```typescript
+import { toViemAccount } from "@cuonghx/evm-kms-signer/viem";
+import { createWalletClient, http, parseEther } from "viem";
+import { mainnet } from "viem/chains";
+
+const account = await toViemAccount(signer);
+const client = createWalletClient({ account, chain: mainnet, transport: http() });
+await client.sendTransaction({ to: "0x...", value: parseEther("0.001") });
+```
+
+The account supports `sign`, `signMessage`, `signTypedData`, `signTransaction` (including EIP-4844), and `signAuthorization` (EIP-7702). Its `source` is the KMS `type` (`"awsKms"`, `"gcpKms"`, ...).
+
+**ethers v6**
+
+```typescript
+import { KmsEthersSigner } from "@cuonghx/evm-kms-signer/ethers";
+import { JsonRpcProvider } from "ethers";
+
+const wallet = new KmsEthersSigner(signer, new JsonRpcProvider("https://..."));
+await wallet.sendTransaction({ to: "0x...", value: 1n });
+```
+
+### Custom KMS
+
+Any object implementing `Kms` works, so you can back the signer with Azure Key Vault, HashiCorp Vault, an HSM, or a remote signing service:
+
+```typescript
+import { createEvmKmsSigner, Kms } from "@cuonghx/evm-kms-signer";
+
+const myKms: Kms<"myKms"> = {
+  type: "myKms",
+  // DER-encoded SubjectPublicKeyInfo of a secp256k1 key
+  async getPublicKey() { /* ... */ },
+  // DER-encoded ECDSA signature over the 32-byte digest
+  async sign(digest) { /* ... */ },
+};
+
+const signer = createEvmKmsSigner({ kms: myKms });
+```
+
+`createEvmKmsSigner` handles DER parsing, low-s normalization (EIP-2), and recovery bit resolution. If your KMS returns PEM, convert it with `pemToDer`.
+
+## Migrating from the per-cloud packages
+
+| Before | After |
+| --- | --- |
+| `new AwsKmsSigner({ keyId, region }, provider)` from `@cuonghx/ethers-aws-kms-signer` | `new KmsEthersSigner(createEvmKmsSigner({ kms: awsKms({ keyId, region }) }), provider)` |
+| `new GcpKmsSigner({ keyVersionName }, provider)` from `@cuonghx/ethers-gcp-kms-signer` | `new KmsEthersSigner(createEvmKmsSigner({ kms: gcpKms({ keyVersionName }) }), provider)` |
+| `await awsKmsToAccount({ keyId })` from `@cuonghx/viem-aws-kms-signer` | `await toViemAccount(createEvmKmsSigner({ kms: awsKms({ keyId }) }))` |
+| `await gcpKmsToAccount({ keyVersionName })` from `@cuonghx/viem-gcp-kms-signer` | `await toViemAccount(createEvmKmsSigner({ kms: gcpKms({ keyVersionName }) }))` |
+| `createLocalKmsBackend(privateKey, { forceHighS })` from `@cuonghx/kms-signer-core` | `localKms({ privateKey, forceHighS })` |
 
 ## Development
 
 ```bash
-npm install       # install all workspaces
-npm run build     # build all packages (core first)
-npm test          # unit tests with a mocked KMS, no credentials needed
+npm install
+npm run build      # tsup: ESM + CJS + types per entry
+npm test           # unit tests with a mocked KMS, no credentials needed
+npm run typecheck
 npm run eslint
 ```
 
-End-to-end tests against a real KMS live in the ethers packages. Copy `.env.example` to `.env`, fill it in, then run `npm run test:e2e` inside the package.
+End-to-end tests run against a real KMS. Copy `.env.example` to `.env`, fill it in, then run `npm run test:e2e`.
 
 ## License
 

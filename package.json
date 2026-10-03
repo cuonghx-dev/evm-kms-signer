@@ -1,22 +1,180 @@
 {
-  "name": "evm-kms-signer",
-  "private": true,
-  "workspaces": [
-    "packages/*"
+  "name": "@cuonghx/evm-kms-signer",
+  "version": "0.1.0",
+  "description": "EVM signers backed by cloud KMS (AWS, GCP, or your own) for viem and ethers",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./aws": {
+      "import": {
+        "types": "./dist/aws/index.d.mts",
+        "default": "./dist/aws/index.mjs"
+      },
+      "require": {
+        "types": "./dist/aws/index.d.ts",
+        "default": "./dist/aws/index.js"
+      }
+    },
+    "./gcp": {
+      "import": {
+        "types": "./dist/gcp/index.d.mts",
+        "default": "./dist/gcp/index.mjs"
+      },
+      "require": {
+        "types": "./dist/gcp/index.d.ts",
+        "default": "./dist/gcp/index.js"
+      }
+    },
+    "./local": {
+      "import": {
+        "types": "./dist/local/index.d.mts",
+        "default": "./dist/local/index.mjs"
+      },
+      "require": {
+        "types": "./dist/local/index.d.ts",
+        "default": "./dist/local/index.js"
+      }
+    },
+    "./viem": {
+      "import": {
+        "types": "./dist/viem/index.d.mts",
+        "default": "./dist/viem/index.mjs"
+      },
+      "require": {
+        "types": "./dist/viem/index.d.ts",
+        "default": "./dist/viem/index.js"
+      }
+    },
+    "./ethers": {
+      "import": {
+        "types": "./dist/ethers/index.d.mts",
+        "default": "./dist/ethers/index.mjs"
+      },
+      "require": {
+        "types": "./dist/ethers/index.d.ts",
+        "default": "./dist/ethers/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "aws": [
+        "./dist/aws/index.d.ts"
+      ],
+      "gcp": [
+        "./dist/gcp/index.d.ts"
+      ],
+      "local": [
+        "./dist/local/index.d.ts"
+      ],
+      "viem": [
+        "./dist/viem/index.d.ts"
+      ],
+      "ethers": [
+        "./dist/ethers/index.d.ts"
+      ]
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist/",
+    "README.md"
   ],
-  "devDependencies": {
-    "lerna": "^8.1.2",
-    "typescript": "^5.4.5"
-  },
-  "version": "1.0.0",
-  "main": "index.js",
   "scripts": {
-    "build": "lerna run build",
-    "test": "lerna run test",
-    "eslint": "lerna run eslint"
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.eslint.json",
+    "test": "ts-mocha --files --extension ts 'test/**/*.unit.spec.ts'",
+    "test:e2e": "ts-mocha --files --extension ts --timeout 60000 'test/**/*.e2e.spec.ts'",
+    "eslint": "eslint ./",
+    "prepublishOnly": "npm run build"
   },
-  "keywords": [],
-  "author": "cuonghx-gutech",
-  "license": "ISC",
-  "description": "Cloud KMS (AWS, GCP) signers for EVM: ethers v6 and viem"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cuonghx-dev/evm-kms-signer.git"
+  },
+  "keywords": [
+    "kms",
+    "aws-kms",
+    "gcp-kms",
+    "viem",
+    "ethers",
+    "signer",
+    "evm"
+  ],
+  "author": "cuonghx-gutech <cuonghx@gu-tech.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/cuonghx-dev/evm-kms-signer/issues"
+  },
+  "homepage": "https://github.com/cuonghx-dev/evm-kms-signer#readme",
+  "dependencies": {
+    "@noble/curves": "^1.9.7",
+    "@noble/hashes": "^1.8.0",
+    "@peculiar/asn1-schema": "^2.3.8",
+    "@peculiar/asn1-x509": "^2.3.8"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-kms": "^3.0.0",
+    "@google-cloud/kms": "^4.0.0",
+    "ethers": "^6.0.0",
+    "viem": "^2.24.0"
+  },
+  "peerDependenciesMeta": {
+    "@aws-sdk/client-kms": {
+      "optional": true
+    },
+    "@google-cloud/kms": {
+      "optional": true
+    },
+    "ethers": {
+      "optional": true
+    },
+    "viem": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@aws-sdk/client-kms": "^3.523.0",
+    "@google-cloud/kms": "^4.2.0",
+    "@types/chai": "^4.3.4",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^20.17.0",
+    "@typescript-eslint/eslint-plugin": "^5.51.0",
+    "@typescript-eslint/parser": "^5.51.0",
+    "chai": "^4.3.7",
+    "dotenv": "^16.0.3",
+    "eslint": "^8.34.0",
+    "eslint-config-prettier": "^8.6.0",
+    "eslint-config-standard": "^17.0.0",
+    "eslint-plugin-eslint-comments": "^3.2.0",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-n": "^15.6.1",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-promise": "^6.1.1",
+    "eslint-plugin-simple-import-sort": "^10.0.0",
+    "ethers": "^6.11.1",
+    "mocha": "^10.2.0",
+    "prettier": "^2.8.4",
+    "ts-mocha": "^10.0.0",
+    "ts-node": "^10.9.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.4.5",
+    "viem": "^2.37.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }
