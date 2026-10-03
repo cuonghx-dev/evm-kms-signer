@@ -55,7 +55,7 @@
     "viem": "^2.37.0"
   },
   "peerDependencies": {
-    "viem": "^2.21.0"
+    "viem": "^2.24.0"
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.523.0",
